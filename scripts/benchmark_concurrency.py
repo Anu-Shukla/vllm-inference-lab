@@ -8,7 +8,7 @@ from pathlib import Path
 import aiohttp
 
 URL = "http://localhost:8000/v1/chat/completions"
-MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 PROMPT = "Explain in one sentence why LLM decode is memory-bound."
 
 
@@ -31,9 +31,9 @@ def summarize(name, values):
     }
 
 
-async def run_one(session, request_id, max_tokens):
+async def run_one(session, request_id, model, max_tokens):
     payload = {
-        "model": MODEL,
+        "model": model,
         "messages": [{"role": "user", "content": PROMPT}],
         "max_tokens": max_tokens,
         "temperature": 0,
@@ -89,7 +89,7 @@ async def run_one(session, request_id, max_tokens):
     }
 
 
-async def run_concurrency(concurrency, requests_per_level, max_tokens):
+async def run_concurrency(concurrency, requests_per_level, model, max_tokens):
     connector = aiohttp.TCPConnector(limit=concurrency)
     timeout = aiohttp.ClientTimeout(total=None)
 
@@ -103,7 +103,7 @@ async def run_concurrency(concurrency, requests_per_level, max_tokens):
             tasks = []
             for _ in range(batch_size):
                 next_request_id += 1
-                tasks.append(run_one(session, next_request_id, max_tokens))
+                tasks.append(run_one(session, next_request_id, model, max_tokens))
 
             batch_results = await asyncio.gather(*tasks)
             results.extend(batch_results)
@@ -139,6 +139,7 @@ async def main_async(args):
         results = await run_concurrency(
             concurrency=concurrency,
             requests_per_level=args.requests_per_level,
+            model=args.model,
             max_tokens=args.max_tokens,
         )
         ended = time.perf_counter()
@@ -154,7 +155,7 @@ async def main_async(args):
         print(json.dumps(summary, indent=2))
 
     output = {
-        "model": MODEL,
+        "model": args.model,
         "prompt": PROMPT,
         "max_tokens": args.max_tokens,
         "requests_per_level": args.requests_per_level,
@@ -171,6 +172,7 @@ async def main_async(args):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument(
         "--concurrency",
         type=int,

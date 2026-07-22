@@ -1,1 +1,5 @@
 vllm-inference-lab.md
+__pycache__/
+*.py[cod]
+.venv/
+results/test_*.json

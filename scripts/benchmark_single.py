@@ -6,7 +6,7 @@ import time
 import requests
 
 URL = "http://localhost:8000/v1/chat/completions"
-MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 PROMPT = "Explain in one sentence why LLM decode is memory-bound."
 
 
@@ -18,9 +18,9 @@ def percentile(values, pct):
     return ordered[index]
 
 
-def run_once(max_tokens):
+def run_once(model, max_tokens):
     payload = {
-        "model": MODEL,
+        "model": model,
         "messages": [{"role": "user", "content": PROMPT}],
         "max_tokens": max_tokens,
         "temperature": 0,
@@ -84,13 +84,14 @@ def summarize(name, values):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--runs", type=int, default=30)
     parser.add_argument("--max-tokens", type=int, default=64)
     args = parser.parse_args()
 
     results = []
     for i in range(args.runs):
-        result = run_once(args.max_tokens)
+        result = run_once(args.model, args.max_tokens)
         results.append(result)
         print(
             f"run={i + 1:02d} "
@@ -104,6 +105,7 @@ def main():
     output_tok_s = [r["output_tokens_per_sec"] for r in results]
 
     summary = {
+        "model": args.model,
         "runs": args.runs,
         "max_tokens": args.max_tokens,
         **summarize("ttft_sec", ttfts),

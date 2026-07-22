@@ -8,7 +8,7 @@ from pathlib import Path
 import aiohttp
 
 URL = "http://localhost:8000/v1/chat/completions"
-MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
+DEFAULT_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
 
 SHARED_PREFIX = """
 You are helping analyze LLM inference performance. Use the following context:
@@ -76,9 +76,9 @@ def make_prompt(workload, index):
     raise ValueError(f"unknown workload: {workload}")
 
 
-async def run_one(session, request_id, prompt, max_tokens):
+async def run_one(session, request_id, model, prompt, max_tokens):
     payload = {
-        "model": MODEL,
+        "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": max_tokens,
         "temperature": 0,
@@ -146,7 +146,7 @@ async def run_benchmark(args):
         for offset in range(0, args.requests, args.concurrency):
             batch = prompts[offset : offset + args.concurrency]
             tasks = [
-                run_one(session, offset + i + 1, prompt, args.max_tokens)
+                run_one(session, offset + i + 1, args.model, prompt, args.max_tokens)
                 for i, prompt in enumerate(batch)
             ]
             results.extend(await asyncio.gather(*tasks))
@@ -171,7 +171,7 @@ async def run_benchmark(args):
     }
 
     return {
-        "model": MODEL,
+        "model": model,
         "summary": summary,
         "results": results,
     }
@@ -179,6 +179,7 @@ async def run_benchmark(args):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--workload", choices=["shared_prefix", "unrelated"], required=True)
     parser.add_argument("--requests", type=int, default=32)
     parser.add_argument("--concurrency", type=int, default=8)
